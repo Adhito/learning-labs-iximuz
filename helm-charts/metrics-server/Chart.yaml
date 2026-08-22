@@ -1,0 +1,17 @@
+apiVersion: v2
+name: metrics-server
+description: Kubernetes Metrics API backend, wrapping the upstream metrics-server chart
+type: application
+version: 0.1.0
+appVersion: "0.9.0"
+
+# Wrapper chart: no templates of its own, just a pinned upstream chart plus
+# our values. Upgrading = bump `version` here and re-run `helm dependency update`.
+#
+# metrics-server has a hard Kubernetes compatibility matrix -- chart 3.14.0
+# ships app 0.9.0, which requires Kubernetes 1.34+. Check before bumping:
+#   kubectl version -o json | jq -r '.serverVersion.gitVersion'
+dependencies:
+  - name: metrics-server
+    version: 3.14.0
+    repository: https://kubernetes-sigs.github.io/metrics-server/

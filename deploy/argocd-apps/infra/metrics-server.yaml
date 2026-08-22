@@ -1,0 +1,58 @@
+# ArgoCD Application for the metrics-server wrapper chart.
+#
+#   kubectl apply -f deploy/argocd-apps/infra/metrics-server.yaml
+#
+# The upstream chart is vendored at helm-charts/metrics-server/charts/*.tgz, so
+# repo-server renders it without any outbound network access.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metrics-server
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Adhito/learning-labs-iximuz.git
+    targetRevision: main
+    path: helm-charts/metrics-server
+    helm:
+      # Drives the subchart's fullname template, so resources are named
+      # "metrics-server" -- matching the existing install so this adopts
+      # rather than duplicating.
+      releaseName: metrics-server
+      valueFiles:
+        - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # kube-system already exists.
+      - CreateNamespace=false
+      # The APIService is large enough that client-side apply's
+      # last-applied-configuration annotation causes problems.
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    # The aggregation layer writes caBundle back into the APIService spec.
+    # Without this the app sits permanently OutOfSync, fighting the API server.
+    - group: apiregistration.k8s.io
+      kind: APIService
+      name: v1beta1.metrics.k8s.io
+      jsonPointers:
+        - /spec/caBundle
+        - /spec/insecureSkipTLSVerify

@@ -1,0 +1,12 @@
+# Everything under this key is passed to the `metrics-server` subchart.
+metrics-server:
+  # Appended to the chart's `defaultArgs`, NOT replacing them -- unlike the
+  # kustomize strategic-merge patch this replaces, where the whole args list
+  # had to be restated.
+  #
+  # --kubelet-insecure-tls: kubeadm generates self-signed kubelet serving certs
+  # that aren't issued by the cluster CA, so metrics-server refuses the scrape
+  # without it. Acceptable in lab, NOT in production -- the proper fix is
+  # kubelet --rotate-server-certificates plus a CSR approver.
+  args:
+    - --kubelet-insecure-tls
