@@ -1,14 +1,14 @@
-# ArgoCD Application for the Vault manifests in this repo.
+# ArgoCD Application for the Vault Helm chart in this repo.
 #
-# NOT part of kustomization.yaml: the Application CRD has to exist before this
-# can be applied, and that CRD ships with the ArgoCD install itself. Applying
-# both in one shot fails on a fresh cluster. Apply this after ArgoCD is up:
+# NOT part of deploy/bootstrap/argocd/kustomization.yaml: the Application CRD has to
+# exist before this can be applied, and that CRD ships with the ArgoCD install
+# itself. Apply this after ArgoCD is up:
 #
-#   kubectl apply -f application-vault.yaml
+#   kubectl apply -f deploy/argocd-apps/infra/vault.yaml
 #
-# PREREQUISITE: the `vault-tls` Secret is NOT in git (see README). Run
-# gen-tls-secret.sh before the first sync, or Vault will crash-loop on a
-# missing cert.
+# PREREQUISITE: the `vault-tls` Secret is NOT in git (see the chart README).
+# Run gen-tls-secret.sh before the first sync, or Vault crash-loops on a
+# missing cert file.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -16,7 +16,6 @@ metadata:
   namespace: argocd
   finalizers:
     # Deleting the Application also deletes the workloads it created.
-    # Remove this line if you would rather deleting the app leave Vault running.
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
@@ -24,14 +23,18 @@ spec:
   source:
     repoURL: https://github.com/Adhito/learning-labs-iximuz.git
     targetRevision: main
-    path: manifest-infra-utility-hashicorp-vault
-    directory:
-      recurse: false
-      # Argo only reads .yaml/.yml/.json, so README.md and gen-tls-secret.sh
-      # in that directory are ignored automatically.
+    path: helm-charts/vault
+    helm:
+      # MUST stay "vault". The chart's selectorLabels use .Release.Name, and a
+      # StatefulSet selector is immutable -- changing this orphans the existing
+      # StatefulSet and the sync fails.
+      releaseName: vault
+      valueFiles:
+        - values.yaml
 
   destination:
     server: https://kubernetes.default.svc
+    # Becomes .Release.Namespace during render.
     namespace: vault
 
   syncPolicy:
