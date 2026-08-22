@@ -64,6 +64,20 @@ kubectl apply -f manifest-infra-utility-hashicorp-vault/
 The PVC uses `WaitForFirstConsumer`, so it reports `Pending` until the pod is
 scheduled. That is normal — it should bind within seconds, not stay stuck.
 
+### If apply fails with "updates to statefulset spec ... are forbidden"
+
+`volumeClaimTemplates` is immutable. Any change to the storage block — size,
+`storageClassName`, PVC vs `emptyDir` — needs the StatefulSet recreated:
+
+```bash
+kubectl delete sts vault -n vault
+kubectl delete pvc data-vault-0 -n vault      # skip to keep existing Raft data
+kubectl apply -f manifest-infra-utility-hashicorp-vault/
+```
+
+Changes to the pod template (image, env, probes, volume mounts) apply normally and
+do not need this.
+
 ## Initialize and unseal
 
 A fresh Vault comes up **uninitialized and sealed**. The probes are configured to
@@ -82,6 +96,97 @@ kubectl -n vault exec -it vault-0 -- vault operator unseal <unseal-key>
 
 Raft data now survives pod restarts, so `init` is a one-time step. Vault does still
 re-seal on every restart, so keep the unseal key — `operator unseal` repeats.
+
+### What sealing means
+
+Vault encrypts everything it stores. The data-encryption key is itself encrypted by
+a **root key**, which is never written to disk in usable form — at `init` it is split
+into shares using Shamir's Secret Sharing (`-key-shares` / `-key-threshold`).
+
+A freshly started Vault holds the encrypted store but no root key in memory. That is
+the **sealed** state: the process is up and answering health checks, but it cannot
+decrypt anything, so every secret read and write fails.
+
+`vault operator unseal <key>` submits one share. Once enough shares arrive to meet
+the threshold, Vault rebuilds the root key in memory and becomes usable. With
+`-key-shares=1 -key-threshold=1` one call does it; with the default 5/3 you run it
+three times with three different keys.
+
+The root key lives only in memory, so **every pod restart re-seals Vault**.
+Production avoids the manual step with auto-unseal backed by a cloud KMS or a
+transit Vault.
+
+### Unsealing from the UI
+
+The UI does the same thing — both it and the CLI call `PUT /v1/sys/unseal`. Open
+`/ui`, and a sealed Vault redirects to the unseal screen. The field takes **one
+share at a time**; with a threshold above 1 the page tracks progress as each is
+submitted, which is what lets different people on different machines each
+contribute their own share.
+
+### Generating a new root token
+
+If the initial root token from `operator init` is lost, a new one can be minted from
+the unseal keys. Three steps — run them inside the pod
+(`kubectl exec -it vault-0 -n vault -- sh`):
+
+```bash
+# 1. Start the operation. Note the Nonce and the OTP.
+vault operator generate-root -init
+
+# 2. Supply the unseal key. Omit the key from the command line so it is
+#    prompted for (hidden) rather than landing in shell history.
+#    Repeat once per share if your threshold is above 1.
+vault operator generate-root -nonce=<nonce>
+#    -> prints an Encoded Token
+
+# 3. Decode it with the OTP from step 1.
+vault operator generate-root -decode=<encoded-token> -otp=<otp>
+#    -> prints the real token, starting with hvs.
+```
+
+`vault operator generate-root -cancel` abandons an in-progress attempt so you can
+start over.
+
+The two-step encoding exists so the plaintext root token never crosses the wire or
+appears on a screen: the Encoded Token is the real token XOR'd with the OTP, so only
+whoever ran step 1 can recover it. That matters when the unseal-key holders and the
+person requesting root access are different people.
+
+**A new root token does not invalidate the old one.** `generate-root` adds a token;
+it does not rotate or supersede anything, and root tokens never expire. Every
+recovery leaves another permanent, unlimited-privilege credential behind unless you
+revoke it yourself:
+
+```bash
+vault token revoke <token>
+
+# Lost the token string? Find and revoke by accessor instead.
+vault list auth/token/accessors
+vault token lookup -accessor <accessor>     # policies [root] identifies them
+vault token revoke -accessor <accessor>
+```
+
+For anything beyond a lab, set up a real auth method (userpass, OIDC, or the
+Kubernetes auth this manifest already grants RBAC for) and revoke root entirely.
+
+### Anatomy of the exec commands
+
+```bash
+kubectl -n vault exec -it vault-0  --  vault operator unseal <unseal-key>
+#        └─── run this ──────────┘      └── ...inside the container ────┘
+```
+
+Everything before `--` is kubectl (`-n` namespace, `exec` into a running pod, `-it`
+for an interactive TTY, `vault-0` the pod). Everything after is the Vault CLI baked
+into the image. The `--` is required, or kubectl tries to parse the inner flags as
+its own.
+
+The CLI needs no address or TLS flags because the StatefulSet sets `VAULT_ADDR` and
+`VAULT_CACERT` in the pod environment.
+
+`vault status` is the read-only counterpart — check `Sealed false` there first
+whenever Vault starts refusing requests, since a restarted pod is the usual cause.
 
 ## Access
 
