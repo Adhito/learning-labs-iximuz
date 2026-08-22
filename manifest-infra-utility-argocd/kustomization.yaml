@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Forces every namespaced resource into argocd. Without this, resources fall
+# back to whatever namespace your kubeconfig context defaults to.
+namespace: argocd
+
+# Pinned to a release tag (NOT "stable") so re-applying later doesn't silently
+# jump versions. Newer tags: https://github.com/argoproj/argo-cd/releases
+# Current pin: v3.5.1
+resources:
+  - namespace.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.1/manifests/install.yaml
+
+# Exposes argocd-server on NodePort 30002 (https). Patch is inlined here
+# rather than in a separate file so this kustomization is self-contained --
+# one file to copy, nothing to forget.
+patches:
+  - target:
+      version: v1
+      kind: Service
+      name: argocd-server
+    patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: argocd-server
+      spec:
+        type: NodePort
+        ports:
+        - name: http
+          port: 80
+          protocol: TCP
+          targetPort: 8080
+        - name: https
+          port: 443
+          protocol: TCP
+          targetPort: 8080
+          nodePort: 30002
