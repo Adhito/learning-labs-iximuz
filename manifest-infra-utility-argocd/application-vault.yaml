@@ -1,0 +1,64 @@
+# ArgoCD Application for the Vault manifests in this repo.
+#
+# NOT part of kustomization.yaml: the Application CRD has to exist before this
+# can be applied, and that CRD ships with the ArgoCD install itself. Applying
+# both in one shot fails on a fresh cluster. Apply this after ArgoCD is up:
+#
+#   kubectl apply -f application-vault.yaml
+#
+# PREREQUISITE: the `vault-tls` Secret is NOT in git (see README). Run
+# gen-tls-secret.sh before the first sync, or Vault will crash-loop on a
+# missing cert.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  finalizers:
+    # Deleting the Application also deletes the workloads it created.
+    # Remove this line if you would rather deleting the app leave Vault running.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Adhito/learning-labs-iximuz.git
+    targetRevision: main
+    path: manifest-infra-utility-hashicorp-vault
+    directory:
+      recurse: false
+      # Argo only reads .yaml/.yml/.json, so README.md and gen-tls-secret.sh
+      # in that directory are ignored automatically.
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+
+  syncPolicy:
+    automated:
+      # prune: remove resources deleted from git.
+      # Safe here: the vault-tls Secret and the PVC are not tracked by this
+      # Application, so neither is a prune target.
+      prune: true
+      # selfHeal: revert manual kubectl edits back to git state.
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    # Vault's `service_registration "kubernetes"` stanza patches its own pod
+    # labels at runtime (vault-active, vault-sealed, vault-initialized).
+    # Without this, Argo sees those live labels as drift and, with selfHeal on,
+    # fights Vault over them forever.
+    - group: apps
+      kind: StatefulSet
+      name: vault
+      namespace: vault
+      jsonPointers:
+        - /spec/template/metadata/labels

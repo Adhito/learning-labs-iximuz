@@ -9,6 +9,7 @@ Verified working end to end: NodePort → argocd-server → UI → admin login.
 |---|---|
 | `kustomization.yaml` | Pulls pinned upstream ArgoCD manifests, forces the `argocd` namespace, inlines the NodePort patch |
 | `namespace.yaml` | Creates the `argocd` namespace |
+| `application-vault.yaml` | Application that syncs `manifest-infra-utility-hashicorp-vault/` from this repo |
 | `README.md` | This file |
 
 Two files do the work. Everything needed is self-contained — there is no
@@ -247,6 +248,81 @@ Current: standard install. To switch, change the `resources:` URL:
 If this is running on a throwaway playground cluster, these two files are the
 entire recovery path — commit them to git. Rebuilding is one
 `kubectl apply -k .` rather than reconstructing the setup by hand.
+
+---
+
+## Managing Vault with ArgoCD
+
+`application-vault.yaml` points ArgoCD at `manifest-infra-utility-hashicorp-vault/`
+in this repo. The directory is plain YAML, so no kustomize or Helm is involved —
+Argo reads `.yaml`/`.yml`/`.json` and ignores `README.md` and `gen-tls-secret.sh`.
+
+### Bootstrap order
+
+The TLS Secret must exist **before** the first sync, or the Vault pod crash-loops
+on a cert file that isn't there.
+
+```bash
+# 1. Generate the cert (creates the vault namespace + vault-tls Secret)
+NODE_HOSTS="cplane-01" ../manifest-infra-utility-hashicorp-vault/gen-tls-secret.sh
+
+# 2. Register the Application
+kubectl apply -f application-vault.yaml
+
+# 3. Watch it sync
+kubectl -n argocd get application vault -w
+```
+
+Then init and unseal by hand as usual — see the Vault README. **ArgoCD cannot do
+this for you** (below).
+
+### The three things that need care
+
+**1. The TLS Secret is not in git.** `gen-tls-secret.sh` creates `vault-tls`
+imperatively, so it sits outside GitOps entirely: Argo won't create it, won't sync
+it, and won't prune it. That's deliberate — a private key in a public repo is worse
+than an un-GitOps'd bootstrap step. To close the gap properly, use Sealed Secrets,
+External Secrets, or SOPS to commit an encrypted form; or have cert-manager issue
+the cert from a `Certificate` resource, which is fully declarative and self-renewing.
+
+**2. StatefulSet storage changes fail to sync.** `volumeClaimTemplates` is immutable,
+so any change to it makes the sync fail with
+`updates to statefulset spec ... are forbidden`. Argo can't work around this; the
+StatefulSet must be deleted by hand and re-synced:
+
+```bash
+kubectl delete sts vault -n vault
+kubectl delete pvc data-vault-0 -n vault    # only if the storage class changed
+argocd app sync vault
+```
+
+Pod-template changes (image, env, probes, mounts) sync normally.
+
+**3. ArgoCD cannot unseal Vault.** Argo reconciles Kubernetes objects; init and
+unseal are Vault API operations against a running server, holding key material Argo
+has no access to. A synced, Healthy Application still means a **sealed** Vault after
+any pod restart. Don't read green in the Argo UI as "Vault is usable".
+
+### Why `ignoreDifferences` is there
+
+Vault's `service_registration "kubernetes"` stanza patches its own pod labels at
+runtime (`vault-active`, `vault-sealed`, `vault-initialized`). With `selfHeal: true`
+and no exclusion, Argo sees those labels as drift and reverts them, Vault re-applies
+them, and the two fight indefinitely — the app flapping between Synced and
+OutOfSynced. The `jsonPointers` entry on the pod template labels stops that.
+
+### Private repo
+
+The Application uses the public HTTPS URL. If the repo is private, register
+credentials first, or repo-server fails with `authentication required`:
+
+```bash
+argocd repo add https://github.com/Adhito/learning-labs-iximuz.git \
+  --username <user> --password <github-token>
+```
+
+Note this is the HTTPS URL, not the SSH remote (`github.com-adhito909:...`) your
+local clone uses — that host alias only exists in your workstation's SSH config.
 
 ## Next step
 

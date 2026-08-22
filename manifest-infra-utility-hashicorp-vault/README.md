@@ -61,6 +61,10 @@ the pod (`kubectl -n vault delete pod vault-0`) to add names later.
 kubectl apply -f manifest-infra-utility-hashicorp-vault/
 ```
 
+To deploy this via ArgoCD instead, see `../manifest-infra-utility-argocd/` —
+`application-vault.yaml` plus the "Managing Vault with ArgoCD" section, which covers
+the TLS bootstrap ordering and why a Healthy Application still means a sealed Vault.
+
 The PVC uses `WaitForFirstConsumer`, so it reports `Pending` until the pod is
 scheduled. That is normal — it should bind within seconds, not stay stuck.
 
