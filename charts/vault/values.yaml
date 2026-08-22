@@ -1,0 +1,64 @@
+replicaCount: 1
+
+image:
+  repository: hashicorp/vault
+  # Empty means "use .Chart.AppVersion" -- so the image tag and the chart's
+  # declared appVersion cannot drift apart by accident.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+  # Binds system:auth-delegator, required for the Kubernetes auth method.
+  authDelegator: true
+  # Vault patches its own pod labels via service_registration.
+  discoveryRole: true
+
+# Rendered into vault.hcl
+server:
+  ui: true
+  # No CAP_IPC_LOCK in the container. Set false and add the capability on
+  # real hardware.
+  disableMlock: true
+  logLevel: info
+
+tls:
+  enabled: true
+  # Secret is created out-of-band by gen-tls-secret.sh, NOT by this chart.
+  secretName: vault-tls
+
+persistence:
+  enabled: true
+  size: 2Gi
+  # "" = cluster default StorageClass, "-" = disable dynamic provisioning.
+  storageClass: local-path
+
+service:
+  port: 8200
+  clusterPort: 8201
+  nodePort:
+    enabled: true
+    port: 30004
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 100
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

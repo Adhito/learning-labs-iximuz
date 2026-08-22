@@ -1,0 +1,55 @@
+{{- if .Values.serviceAccount.authDelegator }}
+{{/*
+Lets Vault validate service account tokens via the TokenReview API.
+Required only for the Kubernetes auth method.
+NOTE: ClusterRoleBinding is cluster-scoped -- see the README caveat about
+installing this chart twice in one cluster.
+*/}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "vault.fullname" . }}-server-binding
+  labels:
+    {{- include "vault.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "vault.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- if .Values.serviceAccount.discoveryRole }}
+---
+{{/*
+service_registration "kubernetes" patches the pod's own labels.
+*/}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "vault.fullname" . }}-discovery
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vault.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "vault.fullname" . }}-discovery-binding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vault.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "vault.fullname" . }}-discovery
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "vault.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "vault.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vault.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "vault.fullname" . }}-internal
+  replicas: {{ .Values.replicaCount }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "vault.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- /*
+        Hash of the rendered ConfigMap. Changing vault.hcl changes this
+        annotation, which changes the pod template, which rolls the pods.
+        Without it, a config edit updates the ConfigMap and nothing restarts.
+        */}}
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "vault.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "vault.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: vault
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["vault"]
+          args: ["server", "-config=/vault/config/vault.hcl"]
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: VAULT_K8S_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VAULT_K8S_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: VAULT_RAFT_NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VAULT_ADDR
+              value: "{{ if .Values.tls.enabled }}https{{ else }}http{{ end }}://127.0.0.1:{{ .Values.service.port }}"
+            - name: VAULT_API_ADDR
+              value: "{{ if .Values.tls.enabled }}https{{ else }}http{{ end }}://$(POD_IP):{{ .Values.service.port }}"
+            - name: VAULT_CLUSTER_ADDR
+              value: "{{ if .Values.tls.enabled }}https{{ else }}http{{ end }}://$(POD_IP):{{ .Values.service.clusterPort }}"
+            {{- if .Values.tls.enabled }}
+            - name: VAULT_CACERT
+              value: "/vault/tls/ca.crt"
+            {{- end }}
+          ports:
+            - name: {{ include "vault.portName" . }}
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            - name: https-internal
+              containerPort: {{ .Values.service.clusterPort }}
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /vault/config
+              readOnly: true
+            {{- if .Values.tls.enabled }}
+            - name: tls
+              mountPath: /vault/tls
+              readOnly: true
+            {{- end }}
+            - name: data
+              mountPath: /vault/data
+          readinessProbe:
+            httpGet:
+              path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+              port: {{ .Values.service.port }}
+              scheme: {{ include "vault.probeScheme" . }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+              port: {{ .Values.service.port }}
+              scheme: {{ include "vault.probeScheme" . }}
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "vault.fullname" . }}-config
+        {{- if .Values.tls.enabled }}
+        - name: tls
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+            defaultMode: 0440
+        {{- end }}
+        {{- if not .Values.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{- if .Values.persistence.storageClass }}
+        {{- if (eq "-" .Values.persistence.storageClass) }}
+        storageClassName: ""
+        {{- else }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}
+        {{- end }}
+{{- end }}
