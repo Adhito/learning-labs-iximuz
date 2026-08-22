@@ -17,7 +17,13 @@ data:
     listener "tcp" {
       address         = "0.0.0.0:8200"
       cluster_address = "0.0.0.0:8201"
-      tls_disable     = 1
+
+      # Cert comes from the `vault-tls` Secret, created by gen-tls-secret.sh.
+      # Vault will not start if these files are missing.
+      tls_disable      = 0
+      tls_cert_file    = "/vault/tls/tls.crt"
+      tls_key_file     = "/vault/tls/tls.key"
+      tls_min_version  = "tls12"
     }
 
     # Integrated storage (Raft). node_id comes from VAULT_RAFT_NODE_ID in the

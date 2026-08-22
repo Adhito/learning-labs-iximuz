@@ -57,14 +57,18 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: VAULT_ADDR
-              value: "http://127.0.0.1:8200"
+              value: "https://127.0.0.1:8200"
+            # So `kubectl exec ... vault operator init` trusts the self-signed
+            # cert instead of needing -tls-skip-verify.
+            - name: VAULT_CACERT
+              value: "/vault/tls/ca.crt"
             # Address other nodes and clients use to reach this one.
             - name: VAULT_API_ADDR
-              value: "http://$(POD_IP):8200"
+              value: "https://$(POD_IP):8200"
             - name: VAULT_CLUSTER_ADDR
-              value: "http://$(POD_IP):8201"
+              value: "https://$(POD_IP):8201"
           ports:
-            - name: http
+            - name: https
               containerPort: 8200
               protocol: TCP
             - name: https-internal
@@ -74,6 +78,9 @@ spec:
             - name: config
               mountPath: /vault/config
               readOnly: true
+            - name: tls
+              mountPath: /vault/tls
+              readOnly: true
             - name: data
               mountPath: /vault/data
           # 204 for both sealed and uninitialized: a fresh Vault must still be
@@ -82,7 +89,9 @@ spec:
             httpGet:
               path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
               port: 8200
-              scheme: HTTP
+              # kubelet does not verify the server cert on probes, so the
+              # self-signed cert is fine here.
+              scheme: HTTPS
             initialDelaySeconds: 5
             periodSeconds: 5
             failureThreshold: 3
@@ -90,7 +99,9 @@ spec:
             httpGet:
               path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
               port: 8200
-              scheme: HTTP
+              # kubelet does not verify the server cert on probes, so the
+              # self-signed cert is fine here.
+              scheme: HTTPS
             initialDelaySeconds: 60
             periodSeconds: 10
             failureThreshold: 6
@@ -109,6 +120,12 @@ spec:
         - name: config
           configMap:
             name: vault-config
+        # Created by gen-tls-secret.sh -- run it before applying these manifests.
+        # 0440 so the vault user reads it via fsGroup without it being world-readable.
+        - name: tls
+          secret:
+            secretName: vault-tls
+            defaultMode: 0440
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -117,5 +134,11 @@ spec:
         resources:
           requests:
             storage: 2Gi
-        # Uses the cluster's default StorageClass. Set storageClassName here if
-        # your cluster has no default.
+        # Named explicitly rather than relying on a cluster default: the
+        # upstream local-path-provisioner manifest does NOT mark its class
+        # default. Install it first (see README), or this PVC stays unbound
+        # and the pod sits Pending.
+        #
+        # local-path binds WaitForFirstConsumer, so the PVC stays Pending
+        # until the pod is scheduled -- that is expected, not a failure.
+        storageClassName: local-path

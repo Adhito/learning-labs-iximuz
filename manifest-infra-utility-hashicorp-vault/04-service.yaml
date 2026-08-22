@@ -15,7 +15,7 @@ spec:
     app.kubernetes.io/name: vault
     app.kubernetes.io/instance: vault
   ports:
-    - name: http
+    - name: https
       port: 8200
       targetPort: 8200
       protocol: TCP
@@ -39,7 +39,7 @@ spec:
     app.kubernetes.io/name: vault
     app.kubernetes.io/instance: vault
   ports:
-    - name: http
+    - name: https
       port: 8200
       targetPort: 8200
       protocol: TCP
@@ -62,7 +62,7 @@ spec:
     app.kubernetes.io/name: vault
     app.kubernetes.io/instance: vault
   ports:
-    - name: http
+    - name: https
       port: 8200
       targetPort: 8200
       nodePort: 30004
