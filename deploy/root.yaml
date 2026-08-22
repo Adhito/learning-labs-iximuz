@@ -1,0 +1,39 @@
+# App-of-apps: one Application whose "workload" is the other Applications.
+#
+# Apply this once, and from then on adding a component means committing a file
+# to deploy/argocd-apps/ -- no kubectl needed:
+#
+#   kubectl apply -f deploy/root.yaml
+#
+# This file deliberately lives OUTSIDE deploy/argocd-apps/ so root does not
+# manage itself. A self-managing root with prune enabled can delete its own
+# Application object, which is confusing to recover from.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Adhito/learning-labs-iximuz.git
+    targetRevision: main
+    path: deploy/argocd-apps
+    directory:
+      # Picks up infra/ and apps/ subdirectories.
+      recurse: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    # Application objects live in the argocd namespace, NOT the namespace of
+    # the workloads they deploy.
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      # Deleting a file from deploy/argocd-apps/ deletes the Application --
+      # and its resources-finalizer cascades that to the workloads. Removing
+      # a file here is a real uninstall, not just an unregister.
+      prune: true
+      selfHeal: true
