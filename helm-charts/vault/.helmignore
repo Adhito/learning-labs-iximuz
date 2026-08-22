@@ -1,0 +1,12 @@
+# Patterns to exclude from `helm package`. Rendering ignores these files anyway;
+# this keeps them out of a packaged .tgz.
+.DS_Store
+.git/
+.gitignore
+*.swp
+*.tmp
+*.orig
+*~
+
+# Bootstrap script -- run by hand before the first install, not part of the chart.
+gen-tls-secret.sh

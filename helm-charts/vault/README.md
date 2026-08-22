@@ -8,16 +8,22 @@ Standalone Vault server (Raft integrated storage) in namespace `vault`, exposed 
 > (`kubectl get storageclass` → `No resources found`), which leaves the PVC unbound
 > and the pod `Pending` forever. Install local-path-provisioner first — see below.
 
+Deployed by ArgoCD from `deploy/argocd-apps/infra/vault.yaml`. Everything below can
+also be driven with plain `helm` for local testing.
+
 ## Files
 
 | File | Contents |
 | --- | --- |
-| `00-namespace.yaml` | namespace `vault` |
-| `01-serviceaccount-rbac.yaml` | ServiceAccount + `system:auth-delegator` (Kubernetes auth method) + Role for pod-label service registration |
-| `02-configmap.yaml` | `vault.hcl` — TLS listener, Raft storage, UI |
+| `Chart.yaml` | chart metadata; `appVersion` pins the Vault image tag |
+| `values.yaml` | the full configuration surface — image, TLS, storage, ports, resources |
+| `templates/_helpers.tpl` | name and label helpers; `selectorLabels` is the immutable set |
+| `templates/configmap.yaml` | `vault.hcl` — TLS listener, Raft storage, UI |
+| `templates/serviceaccount.yaml` | ServiceAccount, gated on `serviceAccount.create` |
+| `templates/rbac.yaml` | `system:auth-delegator` binding + Role/RoleBinding for pod-label registration |
+| `templates/statefulset.yaml` | 1 replica, `local-path` PVC at `/vault/data` |
+| `templates/service.yaml` | `vault-internal` (headless), `vault` (ClusterIP), `vault-nodeport` (NodePort 30004) |
 | `gen-tls-secret.sh` | generates the self-signed CA + server cert into Secret `vault-tls` |
-| `03-statefulset.yaml` | 1 replica, `hashicorp/vault:1.20.4`, 2Gi `local-path` PVC at `/vault/data` |
-| `04-service.yaml` | `vault-internal` (headless), `vault` (ClusterIP), `vault-nodeport` (NodePort 30004) |
 
 ## Prerequisite: storage provisioner
 
@@ -47,8 +53,8 @@ Service DNS names, the per-pod Raft names, `localhost`, and the node you hit on 
 NodePort — a name missing from the SAN list means TLS verification fails against it.
 
 ```bash
-chmod +x manifest-infra-utility-hashicorp-vault/gen-tls-secret.sh
-NODE_HOSTS="cplane-01" ./manifest-infra-utility-hashicorp-vault/gen-tls-secret.sh
+chmod +x helm-charts/vault/gen-tls-secret.sh
+NODE_HOSTS="cplane-01" ./helm-charts/vault/gen-tls-secret.sh
 ```
 
 Pass every hostname and IP you plan to use, e.g.
@@ -57,26 +63,39 @@ the pod (`kubectl -n vault delete pod vault-0`) to add names later.
 
 ## Deploy
 
+Normally ArgoCD does this — it renders the chart and applies the output:
+
 ```bash
-kubectl apply -f manifest-infra-utility-hashicorp-vault/
+kubectl apply -f deploy/argocd-apps/infra/vault.yaml
 ```
 
-To deploy this via ArgoCD instead, see `../manifest-infra-utility-argocd/` —
-`application-vault.yaml` plus the "Managing Vault with ArgoCD" section, which covers
-the TLS bootstrap ordering and why a Healthy Application still means a sealed Vault.
+See `deploy/bootstrap/argocd/README.md` for the TLS bootstrap ordering and why a
+Healthy Application still means a **sealed** Vault.
+
+To render or apply by hand instead:
+
+```bash
+helm lint helm-charts/vault
+helm template vault helm-charts/vault -n vault | kubectl diff -f -
+helm template vault helm-charts/vault -n vault | kubectl apply -f -
+```
+
+The release name must be `vault` — `selectorLabels` derive from `.Release.Name`, and
+a StatefulSet selector is immutable, so a different name orphans the existing one.
 
 The PVC uses `WaitForFirstConsumer`, so it reports `Pending` until the pod is
 scheduled. That is normal — it should bind within seconds, not stay stuck.
 
 ### If apply fails with "updates to statefulset spec ... are forbidden"
 
-`volumeClaimTemplates` is immutable. Any change to the storage block — size,
-`storageClassName`, PVC vs `emptyDir` — needs the StatefulSet recreated:
+`volumeClaimTemplates` is immutable. Any change to `persistence.*` in `values.yaml`
+— size, `storageClass`, PVC vs `emptyDir` — needs the StatefulSet recreated. ArgoCD
+cannot work around this either; its sync fails the same way.
 
 ```bash
 kubectl delete sts vault -n vault
 kubectl delete pvc data-vault-0 -n vault      # skip to keep existing Raft data
-kubectl apply -f manifest-infra-utility-hashicorp-vault/
+argocd app sync vault                         # or re-apply by hand
 ```
 
 Changes to the pod template (image, env, probes, volume mounts) apply normally and

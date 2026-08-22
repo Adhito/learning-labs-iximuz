@@ -267,7 +267,7 @@ on a cert file that isn't there.
 
 ```bash
 # 1. Generate the cert (creates the vault namespace + vault-tls Secret)
-NODE_HOSTS="cplane-01" ./manifest-infra-utility-hashicorp-vault/gen-tls-secret.sh
+NODE_HOSTS="cplane-01" ./helm-charts/vault/gen-tls-secret.sh
 
 # 2. Register the Application
 kubectl apply -f deploy/argocd-apps/infra/vault.yaml
