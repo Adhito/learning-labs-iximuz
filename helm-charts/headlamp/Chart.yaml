@@ -1,0 +1,17 @@
+apiVersion: v2
+name: headlamp
+description: Headlamp — web UI for Kubernetes, exposed on NodePort 30003
+type: application
+version: 0.1.0
+appVersion: "0.45.0"
+
+# Wrapper chart: no templates of its own, just a pinned upstream chart plus
+# our values. Upgrading = bump both versions here and re-run
+# `helm dependency update`.
+#
+# Headlamp versions the chart and the app in lockstep, so chart 0.45.0 ships
+# app 0.45.0 -- unlike metrics-server, where the two diverge.
+dependencies:
+  - name: headlamp
+    version: 0.45.0
+    repository: https://kubernetes-sigs.github.io/headlamp/

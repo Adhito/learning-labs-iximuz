@@ -1,0 +1,23 @@
+# Everything under this key is passed to the `headlamp` subchart.
+headlamp:
+  service:
+    # Upstream default is ClusterIP; NodePort is what makes this reachable at
+    # <node>:30003 without an ingress controller.
+    type: NodePort
+    port: 80
+    nodePort: 30003
+
+  config:
+    inCluster: true
+
+  # The upstream default binds Headlamp's ServiceAccount to cluster-admin, which
+  # is what makes the UI able to show everything. Stated explicitly here rather
+  # than inherited silently, because it is the single most consequential setting
+  # in this chart -- anyone holding a token for this ServiceAccount has full
+  # control of the cluster.
+  #
+  # To restrict: set clusterRoleName to a read-only role, e.g. the built-in
+  # "view" (namespaced resources, no secrets) or "cluster-admin" -> "view".
+  clusterRoleBinding:
+    create: true
+    clusterRoleName: cluster-admin

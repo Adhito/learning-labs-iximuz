@@ -1,0 +1,52 @@
+# ArgoCD Application for the Headlamp wrapper chart.
+#
+#   kubectl apply -f deploy/argocd-apps/infra/headlamp.yaml
+#
+# The upstream chart is vendored at helm-charts/headlamp/charts/*.tgz, so
+# repo-server renders it without any outbound network access.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infra-utility-headlamp
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Adhito/learning-labs-iximuz.git
+    targetRevision: main
+    path: helm-charts/headlamp
+    helm:
+      releaseName: headlamp
+      valueFiles:
+        - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: headlamp
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # The headlamp namespace does not exist yet.
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    # The chart generates a token Secret. Its contents are managed by Headlamp
+    # at runtime; without this the app can sit permanently OutOfSync.
+    - group: ""
+      kind: Secret
+      name: headlamp
+      namespace: headlamp
+      jsonPointers:
+        - /data
