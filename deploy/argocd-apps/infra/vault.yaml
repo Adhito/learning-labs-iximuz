@@ -12,7 +12,9 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: vault
+  # ArgoCD UI / `argocd app` name. Deliberately different from releaseName below:
+  # renaming this is safe, renaming that one is not.
+  name: infra-utility-vault
   namespace: argocd
   finalizers:
     # Deleting the Application also deletes the workloads it created.
@@ -25,9 +27,11 @@ spec:
     targetRevision: main
     path: helm-charts/vault
     helm:
-      # MUST stay "vault". The chart's selectorLabels use .Release.Name, and a
-      # StatefulSet selector is immutable -- changing this orphans the existing
-      # StatefulSet and the sync fails.
+      # MUST stay "vault", independent of metadata.name above. The chart's
+      # selectorLabels use .Release.Name, and a StatefulSet selector is
+      # immutable -- changing this orphans the existing StatefulSet and the
+      # sync fails. It also drives every resource name (vault-config,
+      # vault-internal, ...).
       releaseName: vault
       valueFiles:
         - values.yaml

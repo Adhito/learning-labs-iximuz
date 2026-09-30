@@ -273,7 +273,7 @@ NODE_HOSTS="cplane-01" ./helm-charts/vault/gen-tls-secret.sh
 kubectl apply -f deploy/argocd-apps/infra/vault.yaml
 
 # 3. Watch it sync
-kubectl -n argocd get application vault -w
+kubectl -n argocd get application infra-utility-vault -w
 ```
 
 All paths above are relative to the repository root.
@@ -298,7 +298,7 @@ StatefulSet must be deleted by hand and re-synced:
 ```bash
 kubectl delete sts vault -n vault
 kubectl delete pvc data-vault-0 -n vault    # only if the storage class changed
-argocd app sync vault
+argocd app sync infra-utility-vault
 ```
 
 Pod-template changes (image, env, probes, mounts) sync normally.

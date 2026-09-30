@@ -95,7 +95,7 @@ cannot work around this either; its sync fails the same way.
 ```bash
 kubectl delete sts vault -n vault
 kubectl delete pvc data-vault-0 -n vault      # skip to keep existing Raft data
-argocd app sync vault                         # or re-apply by hand
+argocd app sync infra-utility-vault                         # or re-apply by hand
 ```
 
 Changes to the pod template (image, env, probes, volume mounts) apply normally and
