@@ -1,6 +1,6 @@
 # ArgoCD Application for the Headlamp wrapper chart.
 #
-#   kubectl apply -f deploy/argocd-apps/infra/headlamp.yaml
+#   kubectl apply -f deploy/argocd-apps/infra/infra-utility-headlamp.yaml
 #
 # The upstream chart is vendored at helm-charts/infra-utility-headlamp/charts/*.tgz, so
 # repo-server renders it without any outbound network access.

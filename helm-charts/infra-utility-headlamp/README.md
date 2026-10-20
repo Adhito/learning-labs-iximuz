@@ -4,7 +4,7 @@ Wrapper chart around the upstream
 [Headlamp](https://github.com/kubernetes-sigs/headlamp) chart. No templates of its
 own: a pinned dependency plus a values delta.
 
-Deployed by ArgoCD from `deploy/argocd-apps/infra/headlamp.yaml` into namespace
+Deployed by ArgoCD from `deploy/argocd-apps/infra/infra-utility-headlamp.yaml` into namespace
 `headlamp`, reachable at **`http://<any-node>:30003`**.
 
 ## Files
