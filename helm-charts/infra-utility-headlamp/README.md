@@ -5,7 +5,7 @@ Wrapper chart around the upstream
 own: a pinned dependency plus a values delta.
 
 Deployed by ArgoCD from `deploy/argocd-apps/infra/infra-utility-headlamp.yaml` into namespace
-`headlamp`, reachable at **`http://<any-node>:30003`**.
+`infra-utility-headlamp`, reachable at **`http://<any-node>:30003`**.
 
 ## Files
 
@@ -36,7 +36,7 @@ Kubernetes **ServiceAccount bearer token**, and shows you exactly what that toke
 allowed to see. Generate one:
 
 ```bash
-kubectl -n headlamp create token infra-utility-headlamp
+kubectl -n infra-utility-headlamp create token infra-utility-headlamp
 ```
 
 Paste that into the token prompt in the UI. The token is short-lived by default —
@@ -90,11 +90,11 @@ helm search repo headlamp --versions | head
    ```
 3. Confirm the NodePort survived the bump:
    ```bash
-   helm template infra-utility-headlamp helm-charts/infra-utility-headlamp -n headlamp | grep -B2 -A6 'nodePort'
+   helm template infra-utility-headlamp helm-charts/infra-utility-headlamp -n infra-utility-headlamp | grep -B2 -A6 'nodePort'
    ```
 4. Diff before pushing:
    ```bash
-   helm template infra-utility-headlamp helm-charts/infra-utility-headlamp -n headlamp | kubectl diff -f -
+   helm template infra-utility-headlamp helm-charts/infra-utility-headlamp -n infra-utility-headlamp | kubectl diff -f -
    ```
 5. Commit `Chart.yaml`, `Chart.lock`, and the new `.tgz`; ArgoCD syncs the rest.
 

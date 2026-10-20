@@ -25,14 +25,14 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: headlamp
+    namespace: infra-utility-headlamp
 
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      # The headlamp namespace does not exist yet.
+      # The infra-utility-headlamp namespace does not exist yet.
       - CreateNamespace=true
     retry:
       limit: 3
@@ -47,6 +47,6 @@ spec:
     - group: ""
       kind: Secret
       name: headlamp
-      namespace: headlamp
+      namespace: infra-utility-headlamp
       jsonPointers:
         - /data
