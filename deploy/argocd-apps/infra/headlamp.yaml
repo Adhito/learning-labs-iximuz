@@ -2,7 +2,7 @@
 #
 #   kubectl apply -f deploy/argocd-apps/infra/headlamp.yaml
 #
-# The upstream chart is vendored at helm-charts/headlamp/charts/*.tgz, so
+# The upstream chart is vendored at helm-charts/infra-utility-headlamp/charts/*.tgz, so
 # repo-server renders it without any outbound network access.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -17,9 +17,9 @@ spec:
   source:
     repoURL: https://github.com/Adhito/learning-labs-iximuz.git
     targetRevision: main
-    path: helm-charts/headlamp
+    path: helm-charts/infra-utility-headlamp
     helm:
-      releaseName: headlamp
+      releaseName: infra-utility-headlamp
       valueFiles:
         - values.yaml
 

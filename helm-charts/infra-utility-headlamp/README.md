@@ -36,7 +36,7 @@ Kubernetes **ServiceAccount bearer token**, and shows you exactly what that toke
 allowed to see. Generate one:
 
 ```bash
-kubectl -n headlamp create token headlamp
+kubectl -n headlamp create token infra-utility-headlamp
 ```
 
 Paste that into the token prompt in the UI. The token is short-lived by default —
@@ -86,15 +86,15 @@ helm search repo headlamp --versions | head
    `Chart.yaml` — they move together for this chart.
 2. Re-resolve and re-vendor:
    ```bash
-   helm dependency update helm-charts/headlamp
+   helm dependency update helm-charts/infra-utility-headlamp
    ```
 3. Confirm the NodePort survived the bump:
    ```bash
-   helm template headlamp helm-charts/headlamp -n headlamp | grep -B2 -A6 'nodePort'
+   helm template infra-utility-headlamp helm-charts/infra-utility-headlamp -n headlamp | grep -B2 -A6 'nodePort'
    ```
 4. Diff before pushing:
    ```bash
-   helm template headlamp helm-charts/headlamp -n headlamp | kubectl diff -f -
+   helm template infra-utility-headlamp helm-charts/infra-utility-headlamp -n headlamp | kubectl diff -f -
    ```
 5. Commit `Chart.yaml`, `Chart.lock`, and the new `.tgz`; ArgoCD syncs the rest.
 
