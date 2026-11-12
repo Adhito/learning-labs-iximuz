@@ -4,7 +4,7 @@ Wrapper chart around the upstream
 [metrics-server](https://github.com/kubernetes-sigs/metrics-server) chart. No
 templates of its own: a pinned dependency plus one values override.
 
-Deployed by ArgoCD from `deploy/argocd-apps/infra/metrics-server.yaml`.
+Deployed by ArgoCD from `deploy/argocd-apps/infra/infra-utility-metrics-server.yaml`.
 
 ## Files
 
@@ -65,11 +65,11 @@ kubectl version -o json | jq -r '.serverVersion.gitVersion'
 3. Bump `version:` in the `dependencies:` block of `Chart.yaml`, and `appVersion:`.
 4. Re-resolve and re-vendor:
    ```bash
-   helm dependency update helm-charts/metrics-server
+   helm dependency update helm-charts/infra-utility-metrics-server
    ```
 5. Render and confirm your delta survived the bump:
    ```bash
-   helm template metrics-server helm-charts/metrics-server -n kube-system | grep -A12 'args:'
+   helm template metrics-server helm-charts/infra-utility-metrics-server -n kube-system | grep -A12 'args:'
    ```
 6. Commit `Chart.yaml`, `Chart.lock`, and the new `.tgz`; ArgoCD syncs the rest.
 

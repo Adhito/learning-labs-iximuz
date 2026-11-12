@@ -1,8 +1,8 @@
 # ArgoCD Application for the metrics-server wrapper chart.
 #
-#   kubectl apply -f deploy/argocd-apps/infra/metrics-server.yaml
+#   kubectl apply -f deploy/argocd-apps/infra/infra-utility-metrics-server.yaml
 #
-# The upstream chart is vendored at helm-charts/metrics-server/charts/*.tgz, so
+# The upstream chart is vendored at helm-charts/infra-utility-metrics-server/charts/*.tgz, so
 # repo-server renders it without any outbound network access.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -17,7 +17,7 @@ spec:
   source:
     repoURL: https://github.com/Adhito/learning-labs-iximuz.git
     targetRevision: main
-    path: helm-charts/metrics-server
+    path: helm-charts/infra-utility-metrics-server
     helm:
       # Drives the subchart's fullname template, so resources are named
       # "metrics-server" -- matching the existing install so this adopts
