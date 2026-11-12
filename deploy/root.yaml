@@ -30,10 +30,12 @@ spec:
     # the workloads they deploy.
     namespace: argocd
 
-  syncPolicy:
-    automated:
-      # Deleting a file from deploy/argocd-apps/ deletes the Application --
-      # and its resources-finalizer cascades that to the workloads. Removing
-      # a file here is a real uninstall, not just an unregister.
-      prune: true
-      selfHeal: true
+  # Manual sync on purpose (learning): no `automated` block, so a pushed
+  # change under deploy/argocd-apps/ only reaches the cluster when root is
+  # synced from the UI.
+  #
+  # Syncing root with Prune ticked after deleting a file from
+  # deploy/argocd-apps/ deletes that Application -- and its
+  # resources-finalizer cascades that to the workloads. Removing a file
+  # there is a real uninstall, not just an unregister.
+  syncPolicy: {}

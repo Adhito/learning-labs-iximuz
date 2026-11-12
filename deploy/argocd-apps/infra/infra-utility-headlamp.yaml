@@ -27,10 +27,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: infra-utility-headlamp
 
+  # Manual sync on purpose (learning): no `automated` block, so nothing
+  # changes until Sync is clicked in the UI. Prune is the UI checkbox.
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       # The infra-utility-headlamp namespace does not exist yet.
       - CreateNamespace=true

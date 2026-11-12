@@ -30,10 +30,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: kube-system
 
+  # Manual sync on purpose (learning): no `automated` block, so nothing
+  # changes until Sync is clicked in the UI. Prune is the UI checkbox.
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       # kube-system already exists.
       - CreateNamespace=false

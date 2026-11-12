@@ -41,14 +41,11 @@ spec:
     # Becomes .Release.Namespace during render.
     namespace: vault
 
+  # Manual sync on purpose (learning): no `automated` block, so nothing
+  # changes until Sync is clicked in the UI. Ticking Prune there is safe:
+  # the vault-tls Secret and the PVC are not tracked by this Application,
+  # so neither is a prune target.
   syncPolicy:
-    automated:
-      # prune: remove resources deleted from git.
-      # Safe here: the vault-tls Secret and the PVC are not tracked by this
-      # Application, so neither is a prune target.
-      prune: true
-      # selfHeal: revert manual kubectl edits back to git state.
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
     retry:
