@@ -9,7 +9,7 @@ Verified working end to end: NodePort → argocd-server → UI → admin login.
 |---|---|
 | `kustomization.yaml` | Pulls pinned upstream ArgoCD manifests, forces the `argocd` namespace, inlines the NodePort patch |
 | `namespace.yaml` | Creates the `argocd` namespace |
-| `../../argocd-apps/infra/vault.yaml` | Application that syncs the `helm-charts/vault` chart from this repo |
+| `../../argocd-apps/infra/infra-utility-vault.yaml` | Application that syncs the `helm-charts/infra-utility-vault` chart from this repo |
 | `README.md` | This file |
 
 Two files do the work. Everything needed is self-contained — there is no
@@ -253,8 +253,8 @@ entire recovery path — commit them to git. Rebuilding is one
 
 ## Managing Vault with ArgoCD
 
-`deploy/argocd-apps/infra/vault.yaml` points ArgoCD at the Helm chart in
-`helm-charts/vault/`.
+`deploy/argocd-apps/infra/infra-utility-vault.yaml` points ArgoCD at the Helm chart in
+`helm-charts/infra-utility-vault/`.
 
 Argo renders the chart with `helm template` and applies the output directly — it
 does **not** create a Helm release. `helm list` shows nothing, `helm rollback` does
@@ -267,10 +267,10 @@ on a cert file that isn't there.
 
 ```bash
 # 1. Generate the cert (creates the vault namespace + vault-tls Secret)
-NODE_HOSTS="cplane-01" ./helm-charts/vault/gen-tls-secret.sh
+NODE_HOSTS="cplane-01" ./helm-charts/infra-utility-vault/gen-tls-secret.sh
 
 # 2. Register the Application
-kubectl apply -f deploy/argocd-apps/infra/vault.yaml
+kubectl apply -f deploy/argocd-apps/infra/infra-utility-vault.yaml
 
 # 3. Watch it sync
 kubectl -n argocd get application infra-utility-vault -w

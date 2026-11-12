@@ -4,7 +4,7 @@
 # exist before this can be applied, and that CRD ships with the ArgoCD install
 # itself. Apply this after ArgoCD is up:
 #
-#   kubectl apply -f deploy/argocd-apps/infra/vault.yaml
+#   kubectl apply -f deploy/argocd-apps/infra/infra-utility-vault.yaml
 #
 # PREREQUISITE: the `vault-tls` Secret is NOT in git (see the chart README).
 # Run gen-tls-secret.sh before the first sync, or Vault crash-loops on a
@@ -25,7 +25,7 @@ spec:
   source:
     repoURL: https://github.com/Adhito/learning-labs-iximuz.git
     targetRevision: main
-    path: helm-charts/vault
+    path: helm-charts/infra-utility-vault
     helm:
       # MUST stay "vault", independent of metadata.name above. The chart's
       # selectorLabels use .Release.Name, and a StatefulSet selector is

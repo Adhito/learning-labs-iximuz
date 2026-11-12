@@ -33,4 +33,4 @@ Cluster provisioning (Terraform, Vagrant) lives at the root alongside these —
 separate from `deploy/`, which only covers what runs *inside* an existing cluster.
 
 Currently deployed: single-node HashiCorp Vault over HTTPS on NodePort 30004
-(`helm-charts/vault`), and ArgoCD on NodePort 30002.
+(`helm-charts/infra-utility-vault`), and ArgoCD on NodePort 30002.

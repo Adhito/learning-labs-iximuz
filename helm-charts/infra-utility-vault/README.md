@@ -8,7 +8,7 @@ Standalone Vault server (Raft integrated storage) in namespace `vault`, exposed 
 > (`kubectl get storageclass` → `No resources found`), which leaves the PVC unbound
 > and the pod `Pending` forever. Install local-path-provisioner first — see below.
 
-Deployed by ArgoCD from `deploy/argocd-apps/infra/vault.yaml`. Everything below can
+Deployed by ArgoCD from `deploy/argocd-apps/infra/infra-utility-vault.yaml`. Everything below can
 also be driven with plain `helm` for local testing.
 
 ## Files
@@ -53,8 +53,8 @@ Service DNS names, the per-pod Raft names, `localhost`, and the node you hit on 
 NodePort — a name missing from the SAN list means TLS verification fails against it.
 
 ```bash
-chmod +x helm-charts/vault/gen-tls-secret.sh
-NODE_HOSTS="cplane-01" ./helm-charts/vault/gen-tls-secret.sh
+chmod +x helm-charts/infra-utility-vault/gen-tls-secret.sh
+NODE_HOSTS="cplane-01" ./helm-charts/infra-utility-vault/gen-tls-secret.sh
 ```
 
 Pass every hostname and IP you plan to use, e.g.
@@ -66,7 +66,7 @@ the pod (`kubectl -n vault delete pod vault-0`) to add names later.
 Normally ArgoCD does this — it renders the chart and applies the output:
 
 ```bash
-kubectl apply -f deploy/argocd-apps/infra/vault.yaml
+kubectl apply -f deploy/argocd-apps/infra/infra-utility-vault.yaml
 ```
 
 See `deploy/bootstrap/argocd/README.md` for the TLS bootstrap ordering and why a
@@ -75,9 +75,9 @@ Healthy Application still means a **sealed** Vault.
 To render or apply by hand instead:
 
 ```bash
-helm lint helm-charts/vault
-helm template vault helm-charts/vault -n vault | kubectl diff -f -
-helm template vault helm-charts/vault -n vault | kubectl apply -f -
+helm lint helm-charts/infra-utility-vault
+helm template vault helm-charts/infra-utility-vault -n vault | kubectl diff -f -
+helm template vault helm-charts/infra-utility-vault -n vault | kubectl apply -f -
 ```
 
 The release name must be `vault` — `selectorLabels` derive from `.Release.Name`, and
